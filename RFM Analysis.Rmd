@@ -1,0 +1,258 @@
+---
+title: "Team 8 - Assignment 1"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-02-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Goal - Segment the market & develop a targeting strategy using RFM analysis for Tuscan Lifestyles
+
+```{r}
+# Importing Packages
+library(data.table)
+library(psych)
+library(ggplot2)
+library(Hmisc)
+```
+
+```{r}
+# Reading the Data
+tuscan_data <- fread("TuscanDataForRFMAnalysis.csv",select = c(2,3,4,5,6,7))
+cat("Data Columns: ",names(tuscan_data),"\n")
+cat("No. of Sample Customers: ", nrow(tuscan_data),"\n")
+```
+
+## Question 1
+
+What percentage of customers bought from the test catalog? Show the summary statistics (mean and standard deviation) of how much each buyer spent?
+
+```{r}
+pct_bought <- (nrow(tuscan_data[tuscan_data$buyerdummy == 1,])/nrow(tuscan_data))
+cat("Percentage of Customers Bought From Test Catalogue: ",round(pct_bought*100,2),"%\n")
+cat("Number of Customers Bought From Test Catalogue: ",nrow(tuscan_data[tuscan_data$buyerdummy == 1,]))
+```
+
+```{r}
+buyer_data = tuscan_data[tuscan_data$buyerdummy == 1,]
+
+mean_bought <- mean(buyer_data$dollars)
+std_bought <- sd(buyer_data$dollars)
+median_bought <- median(buyer_data$dollars)
+
+cat("\nData Description\n")
+describeBy(tuscan_data[,c("numords","totdol","last","dollars")],tuscan_data$buyer)
+
+cat("Mean of Dollars Spent by Buyers: ", round(mean_bought,2),"\n")
+cat("Standard Deviation of Dollars Spent by Buyers: ",round(std_bought,2),"\n")
+cat("Median of Dollars Spent by Buyers: ",round(median_bought,2),"\n")
+
+cat("\nCorrelation Plot\n")
+rcorr(as.matrix(tuscan_data[,c('numords','totdol','last', 'dollars')]))
+```
+
+## Question 2
+
+Create the quintiles for Recency (R), Frequency (F) and Monetary Value (M). Show 5 observations with their R, F, and M values and quintiles.
+
+```{r}
+tuscan_data$rec_iq <-.bincode(tuscan_data$last, quantile(tuscan_data$last, probs = seq(0, 1, 0.2)), right = TRUE,
+include.lowest = TRUE)
+describeBy(tuscan_data$last, tuscan_data$rec_iq)
+
+tuscan_data$feq_iq <-.bincode(tuscan_data$numords, quantile(tuscan_data$numords, probs = seq(0, 1, 0.2)), right = TRUE,
+include.lowest = TRUE)
+describeBy(tuscan_data$numords, tuscan_data$feq_iq)
+
+tuscan_data$mon_iq <-.bincode(tuscan_data$totdol, quantile(tuscan_data$totdol, probs = seq(0, 1, 0.2)), right = TRUE,
+include.lowest = TRUE)
+describeBy(tuscan_data$totdol, tuscan_data$mon_iq)
+```
+
+
+```{r}
+cat("\nDisplayed 5 Random Rows\n")
+tuscan_data[sample(nrow(tuscan_data),5),]
+```
+
+## Question 3: Display the averages of R, F, and M for each quintile in a bar chart.
+
+```{r}
+ggplot(data = tuscan_data, aes(x = rec_iq, y = last)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "skyblue") +
+  geom_text(stat = "summary", aes(label = round(..y.., 2)), vjust = -0.5, color = "black") +
+  labs(x = "Recency Quintile", y = "Days Since Previous Purchase (Recency)", title = "Recency Quintile Averages") +
+  theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+ggplot(data = tuscan_data, aes(x = feq_iq, y = numords)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "pink") +
+  geom_text(stat = "summary", aes(label = round(..y.., 2)), vjust = -0.5, color = "black") +
+  labs(x = "Frequency Quintile", y = "Total Number of Past Purchases (Frequency)", title = "Frequency Quintile Averages") +
+  theme_minimal() +
+theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+ggplot(data = tuscan_data, aes(x = mon_iq, y = totdol)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "lightgreen") +
+  geom_text(stat = "summary", aes(label = paste0("$ ",round((..y..), 2))), vjust = -0.5, color = "black") +
+  labs(x = "Monetary Quintile", y = "Total Dollar Value of Past Purchases (Monetary)", title = "Monetary Quintile Averages") +
+  theme_minimal() +
+theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+
+## Question 4: Draw bar charts showing how response probability varies by R, F, and M quintiles. Comment briefly on what you learn from these bar charts.
+
+```{r}
+ggplot(data = tuscan_data, aes(x = rec_iq, y = buyerdummy)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "skyblue") +
+  geom_text(stat = "summary", aes(label = paste0(round((..y..)*100, 2), "%")), vjust = -0.5, color = "black") +
+  labs(x = "Recency Quintile", y = "Response Probability", title = "Recency Quintile Response Probability Averages") +
+  theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+ggplot(data = tuscan_data, aes(x = feq_iq, y = buyerdummy)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "pink") +
+  geom_text(stat = "summary", aes(label = paste0(round((..y..)*100, 2), "%")), vjust = -0.5, color = "black") +
+  labs(x = "Frequency Quintile", y = "Response Probability", title = "Frequency Quintile Response Probability Averages") +
+  theme_minimal() +
+theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+ggplot(data = tuscan_data, aes(x = mon_iq, y = buyerdummy)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "lightgreen") +
+  geom_text(stat = "summary", aes(label = paste0(round((..y..)*100, 2), "%")), vjust = -0.5, color = "black") +
+  labs(x = "Monetary Quintile", y = "Response Probability", title = "Monetary Quintile Response Probability Averages") +
+  theme_minimal() +
+theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+```{r}
+tuscan_data$rec_iq <- 6-tuscan_data$rec_iq
+
+ggplot(data = tuscan_data, aes(x = rec_iq, y = buyerdummy)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "skyblue") +
+  geom_text(stat = "summary", aes(label = paste0(round((..y..)*100, 2), "%")), vjust = -0.5, color = "black") +
+  labs(x = "Recency Quintile", y = "Response Probability", title = "Recency Quintile Averages") +
+  theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+```{r}
+tuscan_data$rfmindex_iq <- 100 * tuscan_data$rec_iq + 10 *tuscan_data$feq_iq + tuscan_data$mon_iq
+tuscan_data$RFM_response <- ave(tuscan_data$buyerdummy, tuscan_data$rfmindex_iq)
+
+ggplot(data = tuscan_data, aes(x = as.factor(rfmindex_iq), y = buyerdummy)) +
+  geom_bar(stat = "summary", fun.y = "mean", fill = "red") +
+  labs(title = "Respone Probability by RFM Index", x = "RFM Index", y = "Response Probability") +
+  scale_x_discrete() +
+  geom_hline(yintercept = 0.0246, color = "black", size = 1.5) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+## Question 5: For this and the remaining questions, use the following numbers:
+
+-   1,834,469 remaining customers (excluding the 5% used in the test)
+-   Cost of goods and services = 50% of revenue
+-   Cost of mailing an offer = $1
+-   Average revenue per customer from those who order = (you calculated this in Q1)
+
+##Suppose that Tuscan Lifestyles sends a mailing to all 1,834,469 remaining customers. Calculate the profitability of this mass-marketing strategy.
+
+
+```{r}
+# Assumption - Sample tested is representative of general population and can be used to extrapolate findings
+# Assumption - Conservative approach - rounding down expected customers as integers 
+no_customers<- 1834469
+response_rate <- pct_bought
+revenue_per_customer <- mean_bought
+
+cost_mailing <- 1
+cogs_per_customer<- revenue_per_customer*0.5
+```
+
+1.  How many buyers should you expect?
+
+```{r}
+exp_customer<- floor(no_customers*response_rate)
+cat("Mass Marketing Expected No. of Customers: ",exp_customer,"\n")
+```
+
+2.  Net profit?
+
+```{r}
+total_cost<- (no_customers*cost_mailing) + (exp_customer*cogs_per_customer)
+total_revenue<- exp_customer*revenue_per_customer
+net_profit <- total_revenue - total_cost
+cat("Mass Marketing Expected Net Profit: $",net_profit,"\n")
+```
+
+3.  Return on marketing expenditure (ROI?)
+
+```{r}
+mkt_roi<- net_profit/(no_customers*cost_mailing) 
+cat("Mass Marketing Expected ROI - Marketing Expenditure: ",round(mkt_roi*100,2),"%\n")
+```
+
+## Question 6: Calculate the break-even response rate.
+
+```{r}
+break_even<- cost_mailing/(revenue_per_customer-cogs_per_customer)
+cat("Mass Marketing Required Break Even Response Rate: ",round(break_even*100,2),"%\n")
+```
+
+## Question 7: Using an independent-quintile RFM approach and the break-even response rate, calculate:
+
+1.  Optimum fraction of the market to target
+```{r}
+tuscan_data$target_iq[tuscan_data$RFM_response > break_even] <- 1
+tuscan_data$target_iq[tuscan_data$RFM_response <= break_even] <- 0
+
+target_fraction <- nrow(tuscan_data[tuscan_data$target_iq == 1])/nrow(tuscan_data)
+cat("RFM Segmentation Optimum Fraction Target Market: ",round(target_fraction*100,2),"%\n")
+```
+
+```{r}
+describeBy(tuscan_data$buyerdummy,tuscan_data$target_iq)
+```
+2.  The expected response rate
+```{r}
+rfm_response_rate <- mean(tuscan_data$RFM_response[tuscan_data$target_iq==1])
+cat("RFM Segmentation Expected Response Rate: ",round(rfm_response_rate*100,2),"%\n")
+```
+3.  Net profit
+```{r}
+no_customers_rfm <- no_customers*target_fraction
+exp_customer_rfm<- floor(no_customers_rfm*rfm_response_rate)
+
+total_cost_rfm <- (no_customers_rfm*cost_mailing) + (exp_customer_rfm*cogs_per_customer)
+total_revenue_rfm <- exp_customer_rfm*revenue_per_customer
+
+net_profit_rfm <- total_revenue_rfm - total_cost_rfm
+cat("Mass Marketing Expected Net Profit: $",net_profit_rfm,"\n")
+```
+4.  ROI of marketing expenditure
+```{r}
+mkt_roi_rfm<- net_profit_rfm/(no_customers_rfm*cost_mailing) 
+cat("RFM Segmentation Expected ROI - Marketing Expenditure: ",round(mkt_roi_rfm*100,2),"%\n")
+```
+5.  Briefly explain why the RFM approach yields more profit and ROI than the mass-marketing approach
+
+Refer to report submitted.
+
+```{r}
+CustomersRFMSegments <- table(tuscan_data$rfmindex_iq)
+BuyersRFMSegments <-tapply(tuscan_data$buyerdummy, tuscan_data$rfmindex_iq, sum)
+combined_table <- cbind(CustomersRFMSegments, BuyersRFMSegments)
+
+# Convert to data frame
+combined_df <- as.data.frame(combined_table)
+
+write.csv(combined_df, file = "RFM_Segments.csv", row.names = TRUE)
+```
+
